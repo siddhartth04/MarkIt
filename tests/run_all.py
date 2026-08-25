@@ -8,7 +8,8 @@ ROOT = os.path.dirname(HERE)
 
 # Order matters only for readability: cheap and specific first.
 ORDER = ["test_prompt.py", "test_tracking.py", "test_posture.py",
-         "test_rules_engine.py", "test_api.py", "test_dashboard.py"]
+         "test_rules_engine.py", "test_integration.py",
+         "test_api.py", "test_dashboard.py", "test_readme.py"]
 
 NOISE = ("FutureWarning", "warnings.warn", "INFO:", "W0000", "absl",
          "clean_up_tokenization", "Loading Florence-2", "Florence-2 ready",

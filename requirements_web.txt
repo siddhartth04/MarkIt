@@ -1,0 +1,14 @@
+# Python 3.10 - 3.12 recommended (mediapipe 0.10.14 supports up to 3.12)
+# Install with:  pip install -r requirements_web.txt
+#
+# transformers is PINNED: Florence-2's Hub code breaks on newer transformers
+# (the KV-cache API changed). 4.44.2 is a known-good pairing. If you later want
+# to unpin, test that Florence-2 still loads before relying on it.
+torch
+transformers==4.44.2
+einops
+timm
+pillow
+opencv-python
+mediapipe==0.10.14
+flask

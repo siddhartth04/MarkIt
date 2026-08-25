@@ -1,0 +1,479 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MarkIt — vision monitor</title>
+<style>
+  /* ---- tokens -------------------------------------------------------- */
+  :root{
+    --bg:#0d0f12; --surface:#15181d; --surface-2:#1b1f26; --raised:#22272f;
+    --line:#282e37; --line-soft:#20252c;
+    --ink:#e8eaed; --ink-dim:#9aa3ae; --ink-faint:#6b7480;
+    --amber:#ffb100; --amber-soft:rgba(255,177,0,.10); --amber-line:rgba(255,177,0,.32);
+    --red:#ff5f56; --red-soft:rgba(255,95,86,.10); --red-line:rgba(255,95,86,.35);
+    --green:#3ddc84; --blue:#4aa8ff; --yellow:#ffd84d;
+    --sans:"Inter","Segoe UI",system-ui,-apple-system,sans-serif;
+    --mono:"JetBrains Mono","Consolas",ui-monospace,monospace;
+    --r:10px; --r-sm:7px;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.6);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);
+       font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased;
+       display:flex;flex-direction:column;min-height:100vh}
+  ::selection{background:var(--amber);color:#0d0f12}
+  /* scrollbars: part of the chrome, not an afterthought */
+  *::-webkit-scrollbar{width:9px;height:9px}
+  *::-webkit-scrollbar-track{background:transparent}
+  *::-webkit-scrollbar-thumb{background:var(--raised);border-radius:5px;
+    border:2px solid transparent;background-clip:content-box}
+  *::-webkit-scrollbar-thumb:hover{background:#333a44;background-clip:content-box}
+
+  /* ---- top bar ------------------------------------------------------- */
+  .top{display:flex;align-items:center;gap:20px;padding:0 20px;height:56px;
+       background:var(--surface);border-bottom:1px solid var(--line);
+       position:sticky;top:0;z-index:20;flex-shrink:0}
+  .brand{display:flex;align-items:baseline;gap:9px;font-weight:700;font-size:16px;
+         letter-spacing:.10em}
+  .brand b{color:var(--amber);font-weight:800}
+  .brand .slash{color:var(--ink-faint);font-weight:400}
+  .brand small{font-family:var(--mono);font-size:10px;color:var(--ink-faint);
+               letter-spacing:.16em;text-transform:uppercase;font-weight:400}
+  .top .spacer{flex:1}
+  /* live status pill, doubles as the alert state indicator */
+  .pill{display:flex;align-items:center;gap:8px;padding:6px 13px;border-radius:100px;
+        background:var(--surface-2);border:1px solid var(--line);
+        font-family:var(--mono);font-size:11px;letter-spacing:.11em;
+        text-transform:uppercase;color:var(--ink-dim);white-space:nowrap;
+        transition:background .25s,border-color .25s,color .25s}
+  .pill .dot{width:7px;height:7px;border-radius:50%;background:var(--green);flex-shrink:0}
+  .pill.alarm{background:var(--red-soft);border-color:var(--red-line);color:var(--red)}
+  .pill.alarm .dot{background:var(--red)}
+  @media (prefers-reduced-motion:no-preference){
+    .pill .dot{animation:pulse 2s ease-in-out infinite}
+    .pill.alarm .dot{animation:pulse .8s ease-in-out infinite}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+  }
+
+  /* ---- layout -------------------------------------------------------- */
+  .wrap{flex:1;display:grid;grid-template-columns:minmax(0,1.55fr) minmax(340px,.85fr);
+        gap:16px;padding:16px;align-items:start;max-width:1800px;width:100%;margin:0 auto}
+  .col{display:flex;flex-direction:column;gap:16px;min-width:0}
+
+  /* ---- cards --------------------------------------------------------- */
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);
+        box-shadow:var(--shadow);overflow:hidden}
+  .card > header{display:flex;align-items:center;gap:10px;padding:12px 15px;
+                 border-bottom:1px solid var(--line-soft)}
+  .card > header h2{margin:0;font-family:var(--mono);font-size:10.5px;font-weight:600;
+                    letter-spacing:.18em;text-transform:uppercase;color:var(--ink-dim)}
+  .card > header .spacer{flex:1}
+  .card .body{padding:15px}
+  .card .body.tight{padding:11px}
+
+  /* ---- video feed ---------------------------------------------------- */
+  .feed{position:relative;background:#000;border:1px solid var(--line);
+        border-radius:var(--r);overflow:hidden;box-shadow:var(--shadow);line-height:0}
+  .feed img{display:block;width:100%;height:auto}
+  .feed .badge{position:absolute;top:11px;left:11px;display:flex;align-items:center;
+        gap:7px;font-family:var(--mono);font-size:10px;letter-spacing:.14em;
+        text-transform:uppercase;color:#fff;background:rgba(8,10,13,.72);
+        backdrop-filter:blur(8px);padding:5px 10px;border-radius:100px;
+        border:1px solid rgba(255,255,255,.10);line-height:1}
+  .feed .badge .rec{width:6px;height:6px;border-radius:50%;background:var(--red)}
+  /* live metric strip over the video: the numbers you watch while watching */
+  .feed .strip{position:absolute;right:11px;top:11px;display:flex;gap:6px}
+  .feed .stat{background:rgba(8,10,13,.72);backdrop-filter:blur(8px);
+        border:1px solid rgba(255,255,255,.10);border-radius:var(--r-sm);
+        padding:5px 9px;text-align:right;line-height:1.25;min-width:60px}
+  .feed .stat .n{font-family:var(--mono);font-size:13px;font-weight:600;color:#fff}
+  .feed .stat .l{font-family:var(--mono);font-size:8.5px;letter-spacing:.13em;
+        text-transform:uppercase;color:rgba(255,255,255,.55)}
+
+  /* ---- watch list ---------------------------------------------------- */
+  .field{display:flex;gap:8px}
+  .field input{flex:1;min-width:0;background:var(--surface-2);border:1px solid var(--line);
+        color:var(--ink);font-family:var(--mono);font-size:13px;padding:10px 12px;
+        border-radius:var(--r-sm);transition:border-color .15s}
+  .field input:focus{outline:none;border-color:var(--amber);
+        box-shadow:0 0 0 3px var(--amber-soft)}
+  .btn{background:var(--amber);color:#0d0f12;border:0;font-family:var(--sans);
+       font-weight:650;font-size:13px;padding:0 18px;border-radius:var(--r-sm);
+       cursor:pointer;transition:filter .15s,transform .06s;white-space:nowrap}
+  .btn:hover{filter:brightness(1.08)}
+  .btn:active{transform:translateY(1px)}
+  .btn.ghost{background:transparent;border:1px solid var(--line);color:var(--ink-dim);
+       font-weight:500;padding:7px 12px;font-size:12px}
+  .btn.ghost:hover{border-color:var(--amber);color:var(--amber);filter:none}
+  .hint{color:var(--ink-faint);font-size:12px;margin:10px 0 0;line-height:1.55}
+  .hint code{font-family:var(--mono);font-size:11.5px;color:var(--amber);
+       background:var(--amber-soft);padding:1.5px 6px;border-radius:4px}
+  .hint b{color:var(--ink-dim);font-weight:600}
+
+  /* ---- chips --------------------------------------------------------- */
+  .chips{display:flex;flex-wrap:wrap;gap:7px}
+  .chip{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);
+        font-size:12px;color:var(--amber);border:1px solid var(--amber-line);
+        background:var(--amber-soft);padding:4px 10px;border-radius:100px;line-height:1.35}
+  .chip b{color:#fff;font-weight:700;font-size:11px}
+  .chip.warn{color:var(--red);border-color:var(--red-line);background:var(--red-soft)}
+  .none{color:var(--ink-faint);font-family:var(--mono);font-size:12px}
+
+  /* ---- counters (the number an operator reads from across the room) --- */
+  .counts{display:grid;grid-template-columns:repeat(auto-fit,minmax(115px,1fr));gap:9px}
+  .counts .c{background:var(--surface-2);border:1px solid var(--line);
+        border-radius:var(--r-sm);padding:11px 13px}
+  .counts .c .n{font-family:var(--mono);font-size:26px;font-weight:600;color:var(--amber);
+        line-height:1.1;letter-spacing:-.02em}
+  .counts .c .l{font-family:var(--mono);font-size:10px;letter-spacing:.12em;
+        text-transform:uppercase;color:var(--ink-faint);margin-top:3px;
+        overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+  /* ---- alerts -------------------------------------------------------- */
+  .alerts{display:flex;flex-direction:column;max-height:270px;overflow-y:auto;
+        margin:-4px -4px -4px 0;padding-right:4px}
+  .alert{display:grid;grid-template-columns:auto auto 1fr;gap:10px;align-items:baseline;
+        font-family:var(--mono);font-size:12px;padding:8px 2px;
+        border-bottom:1px solid var(--line-soft)}
+  .alert:last-child{border-bottom:0}
+  .alert .t{color:var(--ink-faint);font-size:11px;font-variant-numeric:tabular-nums}
+  .alert .r{font-weight:600;letter-spacing:.02em;color:var(--amber)}
+  .alert .d{color:var(--ink-faint);text-align:right;font-size:11px}
+  .alert.warn .r{color:var(--red)}
+  .alert.count .r{color:var(--yellow)}
+  @media (prefers-reduced-motion:no-preference){
+    .alert.new{animation:slide .3s ease-out}
+    @keyframes slide{from{opacity:0;transform:translateX(-6px)}to{opacity:1;transform:none}}
+  }
+
+  /* ---- rules --------------------------------------------------------- */
+  .rules{display:flex;flex-direction:column;gap:9px}
+  .rule{border:1px solid var(--line);border-radius:var(--r-sm);background:var(--surface-2);
+        overflow:hidden;transition:border-color .2s,box-shadow .2s}
+  .rule.on{border-color:var(--red-line);box-shadow:0 0 0 3px var(--red-soft)}
+  .rule .top2{display:flex;gap:8px;align-items:center;padding:9px 10px;
+        border-bottom:1px solid var(--line-soft);background:var(--raised)}
+  .rule .top2 input{flex:1;min-width:0;background:transparent;border:0;color:var(--ink);
+        font-family:var(--sans);font-size:12.5px;font-weight:600;padding:3px 4px;
+        border-radius:4px}
+  .rule .top2 input:hover{background:rgba(255,255,255,.04)}
+  .rule .top2 input:focus{outline:none;background:var(--surface);
+        box-shadow:0 0 0 1px var(--amber)}
+  .rule .kind{font-family:var(--mono);font-size:9px;letter-spacing:.12em;
+        text-transform:uppercase;color:var(--amber);background:var(--amber-soft);
+        border:1px solid var(--amber-line);padding:2.5px 7px;border-radius:100px;
+        white-space:nowrap;flex-shrink:0}
+  .rule.on .kind{color:var(--red);background:var(--red-soft);border-color:var(--red-line)}
+  .rule .x{background:none;border:0;color:var(--ink-faint);cursor:pointer;font-size:17px;
+        line-height:1;padding:0 3px;border-radius:4px;flex-shrink:0;transition:color .15s}
+  .rule .x:hover{color:var(--red);background:var(--red-soft)}
+  .rule .args{display:flex;flex-wrap:wrap;gap:8px;padding:10px}
+  .rule .args label{font-family:var(--mono);font-size:9.5px;letter-spacing:.09em;
+        text-transform:uppercase;color:var(--ink-faint);display:flex;
+        flex-direction:column;gap:3px}
+  .rule .args input{width:62px;background:var(--surface);border:1px solid var(--line);
+        color:var(--ink);font-family:var(--mono);font-size:11.5px;padding:5px 7px;
+        border-radius:5px;transition:border-color .15s}
+  .rule .args input.wide{width:96px}
+  .rule .args input:focus{outline:none;border-color:var(--amber);
+        box-shadow:0 0 0 2px var(--amber-soft)}
+  .rowbtns{display:flex;gap:8px;margin-top:11px;flex-wrap:wrap;align-items:center}
+  .rowbtns select{background:var(--surface-2);border:1px solid var(--line);color:var(--ink);
+        font-family:var(--mono);font-size:12px;padding:7px 9px;border-radius:var(--r-sm);
+        cursor:pointer}
+  .rowbtns select:focus{outline:none;border-color:var(--amber)}
+
+  /* ---- posture ------------------------------------------------------- */
+  .angles{display:flex;gap:8px;margin-top:11px;flex-wrap:wrap}
+  .angles .a{background:var(--surface-2);border:1px solid var(--line);
+        border-radius:var(--r-sm);padding:7px 11px;font-family:var(--mono);font-size:11px;
+        color:var(--ink-faint);letter-spacing:.06em;text-transform:uppercase}
+  .angles .a b{color:var(--ink);font-size:14px;font-weight:600;
+        display:block;margin-top:2px;letter-spacing:0;text-transform:none}
+
+  /* ---- scene / telemetry --------------------------------------------- */
+  .scene{font-size:13px;line-height:1.65;color:var(--ink-dim)}
+  .scene.empty{color:var(--ink-faint);font-family:var(--mono);font-size:12px}
+  .tele{display:grid;grid-template-columns:1fr auto;gap:9px 14px;font-family:var(--mono);
+        font-size:12px}
+  .tele .k{color:var(--ink-faint);letter-spacing:.05em}
+  .tele .v{color:var(--ink);text-align:right;font-variant-numeric:tabular-nums}
+  .tele .v.amber{color:var(--amber)}
+  .foot{color:var(--ink-faint);font-family:var(--mono);font-size:10.5px;
+        letter-spacing:.13em;text-transform:uppercase;text-align:center;
+        padding:6px 16px 20px}
+
+  /* ---- responsive ---------------------------------------------------- */
+  @media(max-width:1080px){
+    .wrap{grid-template-columns:1fr}
+    .feed .strip{position:static;display:grid;grid-template-columns:repeat(3,1fr);
+                 gap:6px;padding:10px;background:var(--surface)}
+    .feed .stat{background:var(--surface-2);backdrop-filter:none;text-align:left}
+  }
+  @media(max-width:560px){
+    .top{height:auto;padding:11px 14px;flex-wrap:wrap;gap:10px}
+    .wrap{padding:12px;gap:12px}
+  }
+</style></head><body>
+
+  <div class="top">
+    <div class="brand"><b>MARK</b><span class="slash">//</span>IT
+      <small>vision monitor</small></div>
+    <div class="spacer"></div>
+    <div id="pill" class="pill"><span class="dot"></span><span id="pilltext">live</span></div>
+  </div>
+
+  <div class="wrap">
+    <!-- primary column: what you look at -->
+    <div class="col">
+      <div class="feed">
+        <span class="badge"><span class="rec"></span> camera 01</span>
+        <div class="strip">
+          <div class="stat"><div class="n" id="s_fps">–</div><div class="l">fps</div></div>
+          <div class="stat"><div class="n" id="s_trk">–</div><div class="l">tracked</div></div>
+          <div class="stat"><div class="n" id="s_ms">–</div><div class="l">cycle</div></div>
+        </div>
+        <img src="/video_feed" alt="live annotated camera feed">
+      </div>
+
+      <div class="card">
+        <header><h2>Watch list</h2></header>
+        <div class="body">
+          <div class="field">
+            <input id="prompt" value="__PROMPT__" spellcheck="false"
+                   aria-label="objects to detect">
+            <button class="btn" onclick="setPrompt()">Set</button>
+          </div>
+          <p class="hint">One object per phrase: <code>person. phone.</code> Commas and
+            "and" work too. Each match gets its own tracked box, so two people show as
+            <b>person x2</b>.</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <header><h2>Detections</h2></header>
+        <div class="body">
+          <div id="chips" class="chips"><span class="none">none yet</span></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <header><h2>Scene</h2></header>
+        <div class="body">
+          <div id="scene" class="scene empty">waiting for first read…</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- control column: what you act on -->
+    <div class="col">
+      <div class="card">
+        <header><h2>Alerts</h2><div class="spacer"></div>
+          <button class="btn ghost" onclick="resetCounts()">Reset counts</button></header>
+        <div class="body">
+          <div id="counts" class="counts"></div>
+          <div id="alerts" class="alerts"><span class="none">nothing yet</span></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <header><h2>Rules</h2></header>
+        <div class="body">
+          <div id="rules" class="rules"></div>
+          <div class="rowbtns">
+            <select id="newkind" aria-label="rule type">
+              <option value="count">count</option>
+              <option value="stalled">stalled (jam)</option>
+              <option value="crossing">crossing (tally)</option>
+              <option value="zone">zone (alignment)</option>
+              <option value="absent">absent</option>
+            </select>
+            <button class="btn ghost" onclick="addRule()">+ Add rule</button>
+          </div>
+          <p class="hint">Zone and line positions are fractions of the frame
+            (0&ndash;1). <b>hold</b> is how long the condition must persist before it
+            alerts &mdash; this is what stops a one-frame glitch becoming an alarm.</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <header><h2>Posture</h2></header>
+        <div class="body">
+          <div id="state" class="chips"><span class="none">no person in frame</span></div>
+          <div id="angles" class="angles"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <header><h2>Telemetry</h2></header>
+        <div class="body">
+          <div class="tele">
+            <span class="k">skeleton</span><span id="fps" class="v amber">– fps</span>
+            <span class="k">florence cycle</span><span id="ms" class="v">– ms</span>
+            <span class="k">tracking</span><span id="trk" class="v">– boxes</span>
+            <span class="k">model</span><span class="v">__MODEL__</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="foot">running locally · nothing leaves this machine</div>
+
+<script>
+async function setPrompt(){
+  const v=document.getElementById('prompt').value;
+  const b=document.querySelector('.field .btn');
+  b.textContent='…';
+  await fetch('/set_prompt',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({prompt:v})});
+  // Detection is seconds-slow on CPU; without this the click feels ignored.
+  b.textContent='Set';
+}
+
+// Field sets per rule type. Keeping this declarative means adding a rule type
+// server-side needs only one entry here, not new UI code.
+const FIELDS={
+  count:   [['label','text','wide'],['min','number'],['max','number'],['hold','number']],
+  stalled: [['label','text','wide'],['speed_px','number'],['hold','number']],
+  absent:  [['label','text','wide'],['hold','number']],
+  crossing:[['label','text','wide'],['line.axis','text'],['line.at','number'],
+            ['direction','number']],
+  zone:    [['label','text','wide'],['zone.x1','number'],['zone.y1','number'],
+            ['zone.x2','number'],['zone.y2','number'],['hold','number']],
+};
+let RULES_STATE=[];
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
+                      .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+function getPath(o,p){return p.split('.').reduce((a,k)=>(a||{})[k],o);}
+function setPath(o,p,v){
+  const ks=p.split('.'); let cur=o;
+  ks.slice(0,-1).forEach(k=>{if(typeof cur[k]!=='object'||cur[k]===null)cur[k]={};cur=cur[k];});
+  cur[ks[ks.length-1]]=v;
+}
+function renderRules(active){
+  const host=document.getElementById('rules');
+  // Don't clobber a field the user is mid-edit in.
+  if(host.contains(document.activeElement)&&document.activeElement.tagName==='INPUT')return;
+  if(!RULES_STATE.length){
+    host.innerHTML='<span class="none">no rules — add one below</span>';return;}
+  host.innerHTML=RULES_STATE.map((r,i)=>{
+    const on=(active||[]).includes(r.name);
+    const args=(FIELDS[r.when]||[]).map(([p,type,cls])=>{
+      const v=getPath(r,p); const val=(v===undefined||v===null)?'':v;
+      return `<label>${p.split('.').pop()}<input class="${cls||''}" type="${type}"
+        step="any" value="${esc(val)}" onchange="editRule(${i},'${p}',this.value)"></label>`;
+    }).join('');
+    return `<div class="rule ${on?'on':''}">
+      <div class="top2">
+        <input value="${esc(r.name||'')}" onchange="editRule(${i},'name',this.value)"
+               aria-label="rule name">
+        <span class="kind">${esc(r.when)}</span>
+        <button class="x" onclick="delRule(${i})" title="delete rule"
+                aria-label="delete rule">&times;</button>
+      </div>
+      <div class="args">${args}</div>
+    </div>`;
+  }).join('');
+}
+function editRule(i,path,val){
+  const num=!isNaN(val)&&val!==''&&!['name','label','line.axis'].includes(path);
+  setPath(RULES_STATE[i],path,num?parseFloat(val):val);
+  saveRules();
+}
+function delRule(i){RULES_STATE.splice(i,1);saveRules();}
+function addRule(){
+  const kind=document.getElementById('newkind').value;
+  const base={name:kind+' '+(RULES_STATE.length+1),when:kind,label:'',level:'warn',hold:2};
+  if(kind==='crossing'){base.line={axis:'x',at:0.5};base.direction=1;delete base.hold;}
+  if(kind==='zone'){base.zone={x1:0.25,y1:0.25,x2:0.75,y2:0.75};base.inside=true;}
+  if(kind==='stalled'){base.speed_px=0.6;base.hold=5;}
+  if(kind==='count'){base.min=1;base.max=null;}
+  RULES_STATE.push(base);saveRules();
+}
+async function saveRules(){
+  const r=await fetch('/rules',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({rules:RULES_STATE})});
+  const j=await r.json();
+  if(j.ok){RULES_STATE=j.rules;}else{console.warn(j.error);}
+  renderRules([]);
+}
+async function resetCounts(){
+  await fetch('/reset_counts',{method:'POST'});
+}
+async function loadRules(){
+  const j=await (await fetch('/rules')).json();
+  RULES_STATE=j.rules||[];renderRules([]);
+}
+
+let lastAlertKey='';
+async function poll(){
+  try{
+    const r=await fetch('/status'); const s=await r.json();
+
+    const scene=document.getElementById('scene');
+    if(s.caption){scene.textContent=s.caption;scene.classList.remove('empty');}
+
+    const chips=document.getElementById('chips');
+    if(s.labels && s.labels.length){
+      // Collapse duplicates to "person x2" — two identical chips are
+      // indistinguishable from one, which hides multi-object detections.
+      const n={}; s.labels.forEach(l=>n[l]=(n[l]||0)+1);
+      chips.innerHTML=Object.entries(n).map(([l,c])=>
+        `<span class="chip">${esc(l)}${c>1?` <b>x${c}</b>`:''}</span>`).join('');
+    }else{chips.innerHTML='<span class="none">none yet</span>';}
+
+    const fps=(s.fps??'–'), ms=(s.pending?'…':(s.florence_ms??'–')), trk=(s.tracking??'–');
+    document.getElementById('s_fps').textContent=fps;
+    document.getElementById('s_trk').textContent=trk;
+    document.getElementById('s_ms').textContent=(s.pending?'…':ms+'ms');
+    document.getElementById('fps').textContent=fps+' fps';
+    document.getElementById('ms').textContent=(s.pending?'reading…':ms+' ms');
+    document.getElementById('trk').textContent=trk+' boxes';
+
+    // Top-bar pill mirrors the most severe active state, so an operator
+    // glancing at the tab sees a problem without reading the alert list.
+    const act=s.active||[];
+    const pill=document.getElementById('pill');
+    const ptxt=document.getElementById('pilltext');
+    if(act.length){pill.classList.add('alarm');ptxt.textContent=act.join(' · ');}
+    else{pill.classList.remove('alarm');ptxt.textContent='live';}
+
+    const warnRules=['bending','crouching'];
+    const st=document.getElementById('state');
+    const posture=act.filter(a=>['bending','leaning','sitting','crouching'].includes(a));
+    if(posture.length){
+      st.innerHTML=posture.map(a=>
+        `<span class="chip ${warnRules.includes(a)?'warn':''}">${esc(a)}</span>`).join('');
+    }else{st.innerHTML=(s.metrics&&Object.keys(s.metrics).length)
+      ?'<span class="none">upright</span>':'<span class="none">no person in frame</span>';}
+
+    const m=s.metrics||{};
+    document.getElementById('angles').innerHTML=Object.keys(m).length
+      ? Object.entries(m).map(([k,v])=>
+          `<div class="a">${esc(k)}<b>${v}&deg;</b></div>`).join('')
+      : '';
+
+    renderRules(act);
+
+    const cnt=s.counts||{};
+    document.getElementById('counts').innerHTML=Object.keys(cnt).length
+      ? Object.entries(cnt).map(([k,v])=>
+          `<div class="c"><div class="n">${v}</div><div class="l">${esc(k)}</div></div>`).join('')
+      : '';
+
+    const al=document.getElementById('alerts');
+    if(s.alerts && s.alerts.length){
+      const key=s.alerts[0].t+s.alerts[0].rule;
+      const isNew=key!==lastAlertKey; lastAlertKey=key;
+      al.innerHTML=s.alerts.map((a,i)=>{
+        const lvl=a.level==='warn'?'warn':(a.level==='count'?'count':'');
+        return `<div class="alert ${lvl} ${(i===0&&isNew)?'new':''}">`+
+          `<span class="t">${esc(a.t)}</span><span class="r">${esc(a.rule)}</span>`+
+          `<span class="d">${esc(a.detail)}</span></div>`;
+      }).join('');
+    }else{al.innerHTML='<span class="none">nothing yet</span>';}
+  }catch(e){}
+}
+loadRules(); setInterval(poll,1000); poll();
+</script>
+</body></html>

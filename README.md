@@ -2,7 +2,7 @@
 
 **A local camera monitor you configure by typing what to watch for.**
 
-Point it at a webcam, type `box. bottle.` into the watch list, and it finds those
+Point it at a webcam, type `Box. Bottle. Person` into the watch list, and it finds those
 things and follows them. Then add rules — *alert me if they stop moving*, *count them
 as they pass this line*, *warn me if one drifts out of this area* — and it watches for
 those conditions and logs them.

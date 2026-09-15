@@ -1,7 +1,7 @@
 """Tunable settings for MarkIt. Edit these, then restart."""
 
 # --- detection -------------------------------------------------------------
-DETECTION_PROMPT = "person. hard hat. safety vest. forklift."
+DETECTION_PROMPT = "person."
 FLORENCE_MODEL   = "microsoft/Florence-2-base"   # 'base' light / 'large' better+slower
 SHOW_CAPTION     = True
 CAPTION_EVERY    = 3      # run the scene caption once per N detection cycles

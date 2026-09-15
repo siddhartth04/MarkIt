@@ -29,12 +29,10 @@ from collections import deque
 # Coordinates are fractions of frame size (0-1) so a rule survives a resolution
 # change or a different camera.
 
-DEFAULT_RULES = [
-    {"name": "belt jam",     "when": "stalled", "label": "box",
-     "speed_px": 0.6, "hold": 5.0, "level": "warn"},
-    {"name": "line starved", "when": "absent",  "label": "box",
-     "hold": 20.0, "level": "info"},
-]
+# Starts empty on purpose: a rule targeting a label the watch list does not
+# detect fires constantly and teaches you to ignore alerts. Add rules from the
+# dashboard once you can see what your camera actually detects.
+DEFAULT_RULES = []
 
 def _clamp01(v):
     try:

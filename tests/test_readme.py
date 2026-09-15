@@ -21,7 +21,7 @@ def check(name, cond, detail=""):
 
 print("=== config table matches markit/config.py ===")
 cfg = open("markit/config.py", encoding="utf-8").read()
-for name, val in [("DETECTION_PROMPT", "person. hard hat. safety vest. forklift."),
+for name, val in [("DETECTION_PROMPT", "person."),
                   ("FLORENCE_MODEL", "microsoft/Florence-2-base"),
                   ("CAM_INDEX", "0"), ("SHOW_CAPTION", "True"),
                   ("CAPTION_EVERY", "3"), ("PORT", "5000"),
@@ -52,9 +52,10 @@ check("crouching knee < 100", 'm["knee"] < 100' in post and "100°" in readme)
 
 print("\n=== default rules match markit/rules.py ===")
 rules = open("markit/rules.py", encoding="utf-8").read()
-check("'belt jam' default exists", '"belt jam"' in rules and "belt jam" in readme)
-check("'line starved' default exists", '"line starved"' in rules and "line starved" in readme)
-check("defaults target label 'box'", '"label": "box"' in rules)
+empty = re.search(r"DEFAULT_RULES\s*=\s*\[\s*\]", rules) is not None
+check("ships with no preloaded rules", empty)
+check("README says the rule list starts empty",
+      "starts with no rules" in readme.lower() or "no rules" in readme.lower())
 
 print("\n=== dependencies match requirements_web.txt ===")
 reqs = open("requirements_web.txt", encoding="utf-8").read()

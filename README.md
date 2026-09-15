@@ -35,9 +35,9 @@ account. The only network access is a one-time model download on first run.
 Three things, in a chain:
 
 **1. It finds what you asked for.** The watch list is plain language, not a fixed
-list of classes. Type `person. hard hat. forklift.` and it looks for those. Type
-`red bottle cap.` and it looks for that instead. No retraining, no config file — the
-model is open-vocabulary, so the prompt *is* the configuration.
+list of classes. It starts on `person.`; type `hard hat. forklift.` and it looks for
+those instead, or `red bottle cap.` and it looks for that. No retraining, no config
+file — the model is open-vocabulary, so the prompt *is* the configuration.
 
 **2. It follows what it found.** Detection is slow on a CPU — seconds per cycle. If
 boxes were only drawn when detection finished, they would lag several seconds behind a
@@ -296,8 +296,13 @@ detection loop), and how many boxes are currently tracked.
 | `line` | `crossing` | `{axis: "x"\|"y", at: 0.0–1.0}` |
 | `direction` | `crossing` | `1` or `-1` — which way across the line counts |
 
-MarkIt ships with two default rules (`belt jam`, `line starved`) targeting the label
-`box`. Change the label to match your actual product.
+MarkIt starts with **no rules**. That is deliberate: a rule targeting a label your watch
+list does not detect fires constantly, and an alert panel that is always red teaches you
+to ignore it. Watch the Detections panel first to see what your camera actually reports,
+then add rules against those exact labels.
+
+The startup watch list is `person.` — change it in the dashboard, or set
+`DETECTION_PROMPT` in [`markit/config.py`](markit/config.py) to whatever your line runs.
 
 ---
 

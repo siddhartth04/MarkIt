@@ -408,6 +408,7 @@ No camera or network needed — the model loads from the local cache.
 | `test_api.py` | HTTP endpoints and rule validation |
 | `test_dashboard.py` | Every element the page's JS touches actually exists |
 | `test_readme.py` | This README's factual claims, checked against the code |
+| `test_docs_rules.py` | `docs/RULES.md` against the rule engine it documents |
 
 `test_readme.py` re-checks this document against the source on every run — config
 defaults, rule types, routes, posture thresholds, dependency pins, and file paths. If a

@@ -59,6 +59,9 @@ active alerts, running counts, and an editor to change the rules without restart
 Five rule types cover most monitoring jobs. Every rule targets a `label` — one of the
 things in your watch list, or `any` for everything.
 
+> Full reference with field tables, tuning advice, and a "why isn't my rule firing"
+> checklist: **[docs/RULES.md](docs/RULES.md)**.
+
 ### `stalled` — things that should be moving, aren't
 
 Fires when every matching object is moving slower than `speed_px` for `hold` seconds.

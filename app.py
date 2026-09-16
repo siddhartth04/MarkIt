@@ -20,9 +20,19 @@ Code lives in the markit/ package:
     posture.py   body-angle conditions from pose landmarks
     pipeline.py  camera capture, worker threads, shared state
     web.py       Flask routes
+    singleton.py stops a leftover instance so the camera is not shared
 """
 
-from markit.web import serve
+from markit.config import PORT
+from markit.singleton import free_port
+
+# Stop a leftover instance BEFORE importing the rest of the package: the camera
+# is opened at import time, and two processes sharing one webcam make the driver
+# return the same frame over and over. That looks like laggy box tracking, not
+# like a second process, which makes it an expensive thing to debug twice.
+free_port(PORT)
+
+from markit.web import serve  # noqa: E402  (must follow free_port)
 
 if __name__ == "__main__":
     serve()

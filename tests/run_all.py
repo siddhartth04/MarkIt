@@ -7,7 +7,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 
 # Order matters only for readability: cheap and specific first.
-ORDER = ["test_prompt.py", "test_tracking.py", "test_posture.py",
+ORDER = ["test_singleton.py", "test_prompt.py", "test_tracking.py", "test_posture.py",
          "test_rules_engine.py", "test_integration.py",
          "test_api.py", "test_dashboard.py", "test_readme.py",
          "test_docs_rules.py"]

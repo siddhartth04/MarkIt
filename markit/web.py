@@ -95,6 +95,14 @@ def reset_counts():
 def serve():
     """Start the background threads, then run the server."""
     import threading
+
+    # app.py clears a leftover instance before importing anything, because the
+    # camera is grabbed at import time. This is the fallback for `python -m
+    # markit` and for callers that import serve() directly; by now the camera
+    # is already open, so it only rescues the port.
+    from .singleton import free_port
+    free_port(PORT)
+
     threading.Thread(target=capture_loop, daemon=True).start()
     threading.Thread(target=worker, daemon=True).start()
     print(f"Open http://{HOST}:{PORT}  (Ctrl+C to stop)")

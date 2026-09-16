@@ -227,9 +227,14 @@ The first launch downloads the Florence-2 weights (~0.5 GB) and takes a few minu
 Later launches load from cache in about 20 seconds. **Wait for `Florence-2 ready.` in
 the terminal** before opening the page.
 
-> If the port is already in use, an older instance is still running. Stop it first —
-> otherwise the new process fails to bind and you will be looking at a stale page while
-> your new code is not running.
+Starting the app **stops any previous instance first**. You can relaunch freely without
+hunting for leftover processes.
+
+> This matters more than it sounds. Two instances share one webcam, which makes the
+> driver hand back the same frame repeatedly — video freezes around 1 fps and the boxes
+> look like they are lagging badly, when the tracker is actually working fine on frames
+> that are not changing. Only a process listening on MarkIt's own port is stopped; other
+> Python work is left alone.
 
 ---
 
@@ -379,6 +384,7 @@ markit/
   posture.py            body-angle conditions from pose landmarks
   pipeline.py           camera capture, worker threads, shared state
   web.py                Flask routes
+  singleton.py          stops a leftover instance so the camera is not shared
   templates/
     dashboard.html      the dashboard (plain HTML/CSS/JS, no build step)
 tests/
@@ -407,6 +413,7 @@ No camera or network needed — the model loads from the local cache.
 | `test_integration.py` | Generated video → real trackers → real rules, end to end |
 | `test_api.py` | HTTP endpoints and rule validation |
 | `test_dashboard.py` | Every element the page's JS touches actually exists |
+| `test_singleton.py` | Startup takes over the port from a leftover instance |
 | `test_readme.py` | This README's factual claims, checked against the code |
 | `test_docs_rules.py` | `docs/RULES.md` against the rule engine it documents |
 

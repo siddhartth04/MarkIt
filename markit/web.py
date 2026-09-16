@@ -48,7 +48,8 @@ def status():
                        fps=shared["fps"], florence_ms=shared["florence_ms"],
                        tracking=shared["tracking"], pending=shared["pending"],
                        active=shared["active"], alerts=shared["alerts"],
-                       metrics=shared["metrics"], counts=shared["counts"])
+                       metrics=shared["metrics"], counts=shared["counts"],
+                       caption_on=shared["caption_on"])
 
 @app.route("/set_prompt", methods=["POST"])
 def set_prompt():
@@ -85,6 +86,22 @@ def rules():
         return jsonify(ok=False, error="; ".join(errors)), 400
     scene.set_rules(clean)
     return jsonify(ok=True, rules=scene.get_rules())
+
+@app.route("/set_caption", methods=["POST"])
+def set_caption():
+    """Turn the scene caption on or off while running.
+
+    The caption is a second Florence-2 pass, so switching it off is the single
+    biggest cut to detection cycle time — which sets the floor on how quickly
+    any rule can react.
+    """
+    data = request.get_json(force=True, silent=True) or {}
+    want = bool(data.get("on"))
+    with lock:
+        shared["caption_on"] = want
+        if not want:
+            shared["caption"] = ""
+    return jsonify(ok=True, caption_on=want)
 
 @app.route("/reset_counts", methods=["POST"])
 def reset_counts():

@@ -28,7 +28,12 @@ latest_raw = None
 shared = {"boxes": [], "labels": [], "caption": "", "florence_ms": 0, "fps": 0.0,
           "prompt": normalize_prompt(DETECTION_PROMPT), "jpeg": None,
           "tracking": 0, "pending": False, "active": [], "alerts": [], "metrics": {},
-          "counts": {}}
+          "counts": {},
+          # Live-toggleable from the dashboard. The caption is a SECOND Florence-2
+          # pass on top of detection, so switching it off is the biggest single
+          # cut to cycle time — and cycle time is the floor on how fast any rule
+          # can react.
+          "caption_on": SHOW_CAPTION}
 
 # Handoff from the Florence worker to the capture loop. The worker publishes the
 # detection ALONG WITH the grayscale frame it ran on, because by the time we see
@@ -43,6 +48,7 @@ def worker():
         with lock:
             frame = None if latest_raw is None else latest_raw.copy()
             prompt = shared["prompt"]
+            caption_on = shared["caption_on"]
         if frame is None:
             time.sleep(0.05); continue
         pil = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
@@ -54,9 +60,11 @@ def worker():
             res = florence(pil, task, text_input=prompt)
             data = res.get(task, {})
             boxes = data.get("bboxes", []); labels = data.get("labels", [])
-            if SHOW_CAPTION and cycle % CAPTION_EVERY == 0:
+            if caption_on and cycle % CAPTION_EVERY == 0:
                 cap_task = "<DETAILED_CAPTION>"
                 caption = florence(pil, cap_task).get(cap_task, "")
+            elif not caption_on:
+                caption = ""        # clear it, so a stale description is not left on screen
         except Exception as e:
             print("Florence worker error:", e)
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)

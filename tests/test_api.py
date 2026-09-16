@@ -55,6 +55,20 @@ print("  keys:", sorted(s.keys()))
 for k in ("active", "alerts", "counts", "metrics", "tracking", "labels"):
     check(f"status has '{k}'", k in s)
 
+print("\n=== /set_caption toggles live ===")
+s0 = c.get("/status").get_json()
+check("status exposes caption_on", "caption_on" in s0)
+r = c.post("/set_caption", json={"on": False})
+check("turning it off works", r.get_json() == {"ok": True, "caption_on": False})
+check("status reflects off", c.get("/status").get_json()["caption_on"] is False)
+check("caption text is cleared", c.get("/status").get_json()["caption"] == "")
+r = c.post("/set_caption", json={"on": True})
+check("turning it on works", r.get_json()["caption_on"] is True)
+check("status reflects on", c.get("/status").get_json()["caption_on"] is True)
+check("a missing body defaults to off",
+      c.post("/set_caption", json={}).get_json()["caption_on"] is False)
+c.post("/set_caption", json={"on": True})
+
 print("\n=== /reset_counts ===")
 m.scene.counts["output"] = 42
 r = c.post("/reset_counts")

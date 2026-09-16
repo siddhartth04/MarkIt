@@ -258,6 +258,12 @@ type gets its own colour in the video; repeats of one type are numbered (`person
 immediately. Zones and count lines are drawn on the video and turn red while their rule
 is firing, so you can see what each rule is watching.
 
+**Scene** — a sentence describing the whole frame. The switch in its header turns it
+off, and that is worth knowing about: the caption is a *second* Florence-2 pass, and on
+this machine it was the difference between a steady ~4.6 s detection cycle and one
+spiking to ~10.5 s. Cycle time is the floor on how fast any rule can react, so turn the
+caption off when responsiveness matters more than the description.
+
 **Alerts** — running counts as large tiles, and a timestamped log below.
 
 **Status pill** (top right) — turns red and names the firing rule, so a problem is
@@ -368,6 +374,7 @@ Edit [`markit/config.py`](markit/config.py), then restart.
 | `POST /set_prompt` | Change the watch list — `{"prompt": "box. bottle."}` |
 | `GET /rules` | Current rules and counter tallies |
 | `POST /rules` | Replace the rule list — `{"rules": [...]}`. Invalid rules are rejected `400` without disturbing the running set. |
+| `POST /set_caption` | Turn the scene caption on or off live — `{"on": false}` |
 | `POST /reset_counts` | Zero the crossing tallies (start of shift) |
 
 ---

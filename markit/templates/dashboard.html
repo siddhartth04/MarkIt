@@ -104,6 +104,16 @@
   .btn.ghost{background:transparent;border:1px solid var(--line);color:var(--ink-dim);
        font-weight:500;padding:7px 12px;font-size:12px}
   .btn.ghost:hover{border-color:var(--amber);color:var(--amber);filter:none}
+  /* toggle switch */
+  .sw{position:relative;width:38px;height:21px;padding:0;flex-shrink:0;cursor:pointer;
+      border-radius:100px;border:1px solid var(--line);background:var(--surface-2);
+      transition:background .2s,border-color .2s}
+  .sw .knob{position:absolute;top:2px;left:2px;width:15px;height:15px;border-radius:50%;
+      background:var(--ink-faint);transition:transform .2s,background .2s}
+  .sw[aria-checked="true"]{background:var(--amber-soft);border-color:var(--amber-line)}
+  .sw[aria-checked="true"] .knob{transform:translateX(17px);background:var(--amber)}
+  .sw:focus-visible{outline:none;box-shadow:0 0 0 3px var(--amber-soft)}
+  .sw[disabled]{opacity:.5;cursor:default}
   .hint{color:var(--ink-faint);font-size:12px;margin:10px 0 0;line-height:1.55}
   .hint code{font-family:var(--mono);font-size:11.5px;color:var(--amber);
        background:var(--amber-soft);padding:1.5px 6px;border-radius:4px}
@@ -257,9 +267,16 @@
       </div>
 
       <div class="card">
-        <header><h2>Scene</h2></header>
+        <header><h2>Scene</h2><div class="spacer"></div>
+          <button id="captoggle" class="sw" role="switch" aria-checked="true"
+                  onclick="toggleCaption()" title="Scene captions cost a second
+Florence-2 pass — turning them off speeds up detection">
+            <span class="knob"></span></button>
+        </header>
         <div class="body">
           <div id="scene" class="scene empty">waiting for first read…</div>
+          <p class="hint">Costs a second detection pass. Off makes rules react
+            sooner.</p>
         </div>
       </div>
     </div>
@@ -400,6 +417,26 @@ async function saveRules(){
 async function resetCounts(){
   await fetch('/reset_counts',{method:'POST'});
 }
+
+// While a toggle request is in flight the poll must not overwrite the switch
+// with the server's not-yet-updated value, or it visibly snaps back.
+let capBusy=false;
+async function toggleCaption(){
+  const b=document.getElementById('captoggle');
+  const next=b.getAttribute('aria-checked')!=='true';
+  b.setAttribute('aria-checked',String(next));
+  b.disabled=true; capBusy=true;
+  try{
+    const r=await fetch('/set_caption',{method:'POST',
+      headers:{'Content-Type':'application/json'},body:JSON.stringify({on:next})});
+    const j=await r.json();
+    b.setAttribute('aria-checked',String(!!j.caption_on));
+  }catch(e){
+    b.setAttribute('aria-checked',String(!next));   // request failed: put it back
+  }finally{
+    b.disabled=false; capBusy=false;
+  }
+}
 async function loadRules(){
   const j=await (await fetch('/rules')).json();
   RULES_STATE=j.rules||[];renderRules([]);
@@ -410,8 +447,15 @@ async function poll(){
   try{
     const r=await fetch('/status'); const s=await r.json();
 
+    if(!capBusy){
+      document.getElementById('captoggle')
+              .setAttribute('aria-checked',String(!!s.caption_on));
+    }
     const scene=document.getElementById('scene');
     if(s.caption){scene.textContent=s.caption;scene.classList.remove('empty');}
+    else if(s.caption_on===false){
+      scene.textContent='captions off';scene.classList.add('empty');
+    }
 
     const chips=document.getElementById('chips');
     if(s.labels && s.labels.length){

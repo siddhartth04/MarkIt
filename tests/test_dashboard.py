@@ -46,8 +46,15 @@ for token in ["FIELDS", "RULES_STATE", "renderRules", "editRule", "delRule",
 for kind in ["count", "stalled", "crossing", "zone", "absent"]:
     check(f"rule type '{kind}' offered", f'value="{kind}"' in html)
 
+print("\n=== caption toggle is wired ===")
+check("toggle button exists", 'id="captoggle"' in html)
+check("it is a switch for screen readers", 'role="switch"' in html)
+check("handler is defined", "function toggleCaption" in html)
+check("guards against the poll overwriting it mid-request", "capBusy" in html)
+
 print("\n=== endpoints the page calls ===")
-for ep in ["/status", "/set_prompt", "/rules", "/reset_counts", "/video_feed"]:
+for ep in ["/status", "/set_prompt", "/rules", "/reset_counts", "/video_feed",
+           "/set_caption"]:
     check(f"{ep} referenced", ep in html)
     # and actually routable
     rules = {str(r) for r in m.app.url_map.iter_rules()}
@@ -56,7 +63,7 @@ for ep in ["/status", "/set_prompt", "/rules", "/reset_counts", "/video_feed"]:
 print("\n=== status fields the page reads are all served ===")
 s = c.get("/status").get_json()
 for f in ["caption", "labels", "fps", "florence_ms", "pending", "tracking",
-          "active", "alerts", "counts", "metrics"]:
+          "active", "alerts", "counts", "metrics", "caption_on"]:
     check(f"status.{f}", f in s)
 
 print("\n=== html sanity ===")
